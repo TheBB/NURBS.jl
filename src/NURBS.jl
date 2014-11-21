@@ -1,5 +1,7 @@
 module NURBS
 
-# package code goes here
+export BSplineBasis, dim
 
-end # module
+include("BSplineBasis.jl")
+
+end  # module NURBS
