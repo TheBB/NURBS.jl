@@ -1,6 +1,6 @@
 module NURBS
 
-export BSplineBasis, dim
+export BSplineBasis, dim, evaluate_raw
 
 include("BSplineBasis.jl")
 
