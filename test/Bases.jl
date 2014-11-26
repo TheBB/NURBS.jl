@@ -1,3 +1,5 @@
+import Iterators: product
+
 using NURBS.Bases
 
 info("Testing NURBS.Bases")
@@ -31,7 +33,7 @@ basis = uniform_bsbasis(4, 4, 0, 1)
 @test(dim(basis) == 7)
 
 
-# BSplineBasis evaluate_raw
+# BSplineBasis evaluation
 # ========================================================================
 
 basis = uniform_bsbasis(2, 2, 0, 1)
@@ -69,3 +71,15 @@ basis = uniform_bsbasis(2, 4, 0, 2)
 @test(supported(basis, 1.0) == 2:5)
 @test(supported(basis, 1.9) == 2:5)
 @test(supported(basis, 2.0) == 2:5)
+
+function test_derivatives(basis, pt, dt=1e-6, tol=1e-8)
+    lft = evaluate(basis, pt - dt, basis.order-1)
+    rgt = evaluate(basis, pt + dt, basis.order-1)
+    mid = evaluate(basis, pt, basis.order-1)
+    vals = (rgt - lft) / 2dt
+    @test_approx_eq_eps(mid[:,2:end], vals[:,1:end-1], tol)
+end
+
+for (ord, pt) in product(2:4, [0.25, 0.47, 0.89])
+    test_derivatives(uniform_bsbasis(2, ord, 0, 1), pt)
+end
