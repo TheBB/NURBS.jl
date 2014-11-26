@@ -1,5 +1,9 @@
-type BSplineBasis{T}
-    knots::Vector{T}
+module Basis
+
+export BSplineBasis, uniform_basis, dim, evaluate_raw
+
+type BSplineBasis
+    knots::Vector{Float64}
     order::Int
 
     function BSplineBasis(knots, order, extend=true)
@@ -23,16 +27,42 @@ end
 uniform_basis(elements, order=4, lower=0.0, upper=1.0) =
     BSplineBasis(linspace(lower, upper, elements+1), order)
 
-dim(knots::BSplineBasis) = length(basis.knots) - basis.order
+dim(basis::BSplineBasis) = length(basis.knots) - basis.order
 
-function evaluate_raw{T}(knots::Vector{T}, coeffs::Vector{T}, point::T)
-    n = length(coeffs)
-    while n > 1
-        α = (point - knots[1:n-1]) ./ (knots[end-n+2:end] - knots[1:n-1])
-        coeffs = (1 - α) .* coeffs[1:end-1] + α .* coeffs[2:end]
-        knots = knots[2:end-1]
-        n -= 1
+function evaluate_raw(basis::BSplineBasis, point::Float64)
+    knots, order = basis.knots, basis.order
+    
+    # Point should satisfy knots[stop] <= point < knots[stop+1],
+    # unless at the right hand side of the interval
+    stop = searchsorted(knots, point).stop
+    if knots[stop] == knots[end]
+        stop -= order
+    end
+    start = stop - order + 1
+
+    # Basis values of order 1 (piecewise constants)
+    bvals = zeros(Float64, order)
+    bvals[end] = 1.0
+
+    for k in 2:order
+        for i in order-k+2:order
+            dx = knots[start+i+k-2] - knots[start+i-1]
+            if dx > 0
+                bvals[i] /= dx
+            else
+                bvals[i] = 0.0
+            end
+        end
+
+        for i in order-k+1:order
+            bvals[i] *= (point - knots[start+i-1])
+            if i < order
+                bvals[i] += (knots[start+i+k-1] - point) * bvals[i+1]
+            end
+        end
     end
 
-    return coeffs
+    return bvals, start:stop
 end
+
+end  # module BSplineBasis
