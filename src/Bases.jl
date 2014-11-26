@@ -16,16 +16,18 @@ export Basis, dim, supported, evaluate_raw, evaluate,
 #
 # supported(b::MyBasis, pts::Vector{Float64})
 #     Organizes the points into subsets on which the same basis functions are supported.
-#     Return any iterator of (Vector{Float64}, Range).
+#     Returns any iterator of (Vector{Float64}, Range).
 #     May assume that pts is sorted.
 #
-# evaluate_raw(b::MyBasis, pt::Float64, rng::Range)
-#     Evaluate the basis functions in rng at pt.
+# evaluate_raw(b::MyBasis, pt::Float64, nder::Int, rng::Range)
+#     Evaluate the basis functions in rng at pt, as well as their first nder derivatives.
+#     Returns an array of dimensions |rng| × (nder+1).
 #     May assume that rng == supported(b, pt).
 
 abstract Basis
 
-evaluate(b::Basis, pt::Float64) = evaluate_raw(b, pt, supported(b, pt))
+evaluate(b::Basis, pt::Float64, nder::Int) = evaluate_raw(b, pt, nder, supported(b, pt))
+evaluate(b::Basis, pt::Float64) = evaluate_raw(b, pt, 0, supported(b, pt))[:]
 supported(b::Basis, pt::Float64) = first(supported(b, [pt]))[2]
 
 
@@ -76,26 +78,43 @@ function supported(b::BSplineBasis, pts::Vector{Float64})
     end
 end
 
-function evaluate_raw(b::BSplineBasis, pt::Float64, rng::UnitRange{Int})
+function evaluate_raw(b::BSplineBasis, pt::Float64, nder::Int, rng::UnitRange{Int})
+    @assert(nder < b.order, "Higher order derivatives not supported")
+
     # Basis values of order 1 (piecewise constants)
-    bvals = zeros(Float64, b.order)
-    bvals[end] = 1.0
+    bvals = zeros(Float64, (b.order,  nder+1))
+    bvals[end,end] = 1.0
 
     const p = b.order
     const bi = rng.start + p
+    col = nder + 1
 
-    # Increase order
+    # Iterate over orders
     for k in 0:p-2
+        # Scale basis functions
         dxs = b.knots[bi : bi+k] - b.knots[bi-k-1 : bi-1]
-        bvals[p-k:end] ./= dxs
+        bvals[p-k:end, col:end] ./= dxs
 
-        lft = pt - b.knots[bi-k-2:bi-1]
-        rgt = b.knots[bi:bi+k] - pt
-        bvals[p-k-1:end] =
-            lft .* bvals[p-k-1:end] + [rgt .* bvals[p-k:end], 0]
+        if k > p-2-nder
+            # Copy scaled basis functions to next level
+            bvals[:, col-1] = bvals[:, col]
+
+            # Differentiate the remainder
+            # This 'unscales' the functions
+            bvals[:, col:end] = [bvals[1:end-1, col:end] - bvals[2:end, col:end];
+                                 bvals[end, col:end]] * (k + 1)
+
+            col -= 1
+        end
+
+        # Apply order increment formula to the highest level
+        # This also 'unscales' the functions
+        lft = (pt - b.knots[bi-k-2:bi-1]) .* bvals[p-k-1:end, col]
+        rgt = [(b.knots[bi:bi+k] - pt) .* bvals[p-k:end, col], 0]
+        bvals[p-k-1:end, col] = lft + rgt
     end
 
     bvals
 end
 
-end  # module BSplineBasis
+end  # module Bases
