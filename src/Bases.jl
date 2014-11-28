@@ -85,11 +85,23 @@ end
 function Base.call(b::BSpline, pt::Real)
     rng = supported(b.basis, pt)
     if b.index ∉ rng return 0.0 end
-    evaluate_raw(b.basis, pt, b.deriv, rng)[1 + b.index - rng.start, 1 + b.deriv + b.basis.deriv]
+    der = b.deriv + b.basis.deriv
+    evaluate_raw(b.basis, pt, der, rng)[1 + b.index - rng.start, 1 + der]
 end
 
 Base.call(b::BSplineBasis, pts) = [b(pt) for pt in pts]
 Base.call(b::BSpline, pts) = [b(pt) for pt in pts]
+
+function Base.call(b::BSplineBasis, pts, coeffs)
+    imap(b(pts)) do i
+        (vals, idxs) = i
+        if length(size(coeffs)) == 1
+            dot(coeffs[idxs], vals)
+        else
+            coeffs[idxs,:]' * vals
+        end
+    end
+end
 
 function supported(b::BSplineBasis, pts::Vector{Float64})
     @assert(b.knots[1] <= pts[1] <= pts[end] <= b.knots[end])
