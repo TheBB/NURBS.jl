@@ -88,14 +88,22 @@ end
 Base.call(b::BSplineBasis, pts) = [b(pt) for pt in pts]
 Base.call(b::BSpline, pts) = [b(pt) for pt in pts]
 
-Base.call(b::BSplineBasis, pts, coeffs::Vector) =
-    [dot(coeffs[idxs], vals) for (vals, idxs) in b(pts)]
+function Base.call(b::BSplineBasis, pt::Real, coeffs::Vector)
+    (vals, idxs) = b(pt)
+    dot(vals, coeffs[idxs])
+end
 
-Base.call(b::BSplineBasis, pts, coeffs) =
-    [vals' * coeffs[idxs,:] for (vals, idxs) in b(pts)]
+function Base.call(b::BSplineBasis, pt::Real, coeffs)
+    (vals, idxs) = b(pt)
+    vals' * coeffs[idxs,:]
+end
+
+Base.call(b::BSplineBasis, pts, coeffs::Vector) = [b(pt, coeffs) for pt in pts]
+Base.call(b::BSplineBasis, pts, coeffs) = vcat([b(pt, coeffs) for pt in pts]...)
 
 function supported(b::BSplineBasis, pts::Vector{Float64})
-    @assert(b.knots[1] <= pts[1] <= pts[end] <= b.knots[end])
+    (min, max) = extrema(pts)
+    @assert(min in domain(b) && max in domain(b))
 
     idxs = zeros(Int, length(pts))
 
