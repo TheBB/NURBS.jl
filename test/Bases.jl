@@ -1,78 +1,100 @@
 import Iterators: product
 
+using NURBS.Utils
 using NURBS.Bases
 
 info("Testing NURBS.Bases")
 
-# Tests have been disabled on this branch for the moment.
+
+# BSplineBasis inner constructor
+# ========================================================================
+
+basis = BSplineBasis(linspace(0, 4, 5), 3)
+@test(basis.knots == [0, 0, 0, 1, 2, 3, 4, 4, 4])
+@test(basis.order == 3)
+@test(basis.deriv == 0)
+
+basis = BSplineBasis([0, 0, 0, 1, 2, 3, 4, 4, 4], 3, 1, false)
+@test(basis.knots == [0, 0, 0, 1, 2, 3, 4, 4, 4])
+@test(basis.order == 3)
+@test(basis.deriv == 1)
+
+@test_throws(ErrorException, BSplineBasis([2, 2, 1, 0, 0], 2, 0, false))
+@test_throws(ErrorException, BSplineBasis([0, 0, 1, 2, 2], 3, 0, false))
+@test_throws(ErrorException, BSplineBasis([0, 0, 1, 2, 3], 2, 0, false))
+@test_throws(ErrorException, BSplineBasis([0, 1, 2, 3, 3], 2, 0, false))
+@test_throws(ErrorException, BSplineBasis([0, 1], 2, 2))
 
 
-# # BSplineBasis inner constructor
-# # ========================================================================
+# BSplineBasis outer constructors
+# ========================================================================
 
-# basis = BSplineBasis(linspace(0, 4, 5), 3)
-# @test(basis.order == 3)
-# @test(basis.knots == [0, 0, 0, 1, 2, 3, 4, 4, 4])
-# @test(dim(basis) == 6)
-
-# basis = BSplineBasis([0, 0, 0, 1, 2, 3, 4, 4, 4], 3, false)
-# @test(basis.order == 3)
-# @test(basis.knots == [0, 0, 0, 1, 2, 3, 4, 4, 4])
-# @test(dim(basis) == 6)
-
-# @test_throws(ErrorException, BSplineBasis([2, 2, 1, 0, 0], 2, false))
-# @test_throws(ErrorException, BSplineBasis([0, 0, 1, 2, 2], 3, false))
-# @test_throws(ErrorException, BSplineBasis([0, 0, 1, 2, 3], 2, false))
-# @test_throws(ErrorException, BSplineBasis([0, 1, 2, 3, 3], 2, false))
+basis = BSplineBasis(0, 1, 4, 4)
+@test(basis.knots == [0, 0, 0, 0, 0.25, 0.5, 0.75, 1, 1, 1, 1])
+@test(basis.order == 4)
+@test(basis.deriv == 0)
 
 
-# # BSplineBasis outer constructors
-# # ========================================================================
+# BSplineBasis length, size and domain
+# ========================================================================
 
-# basis = uniform_bsbasis(4, 4, 0, 1)
-# @test(basis.order == 4)
-# @test(basis.knots == [0, 0, 0, 0, 0.25, 0.5, 0.75, 1, 1, 1, 1])
-# @test(dim(basis) == 7)
+basis = BSplineBasis(0, 1, 4, 4)
+@test(length(basis) == 7)
+@test(size(basis) == (7,))
+@test(domain(basis) == Interval(0, 1))
+
+basis = BSplineBasis(0, 2, 5, 3)
+@test(length(basis) == 7)
+@test(size(basis) == (7,))
+@test(domain(basis) == Interval(0, 2))
 
 
-# # BSplineBasis evaluation
-# # ========================================================================
+# BSplineBasis evaluation
+# ========================================================================
 
-# basis = uniform_bsbasis(2, 2, 0, 1)
-# @test_approx_eq(evaluate(basis, 0.0), [1, 0])
-# @test_approx_eq(evaluate(basis, 0.1), [0.8, 0.2])
-# @test_approx_eq(evaluate(basis, 0.4), [0.2, 0.8])
-# @test_approx_eq(evaluate(basis, 0.5), [1, 0])
-# @test_approx_eq(evaluate(basis, 0.75), [0.5, 0.5])
+# Single point, no derivatives, no coefficients
+function testeval_snn(b, x, vals, idxs)
+    (rvals, ridxs) = b(x)
+    @test(ridxs == idxs)
+    @test_approx_eq(rvals, vals)
+end
 
-# basis = uniform_bsbasis(2, 2, 0, 1)
-# @test(supported(basis, 0.0) == 1:2)
-# @test(supported(basis, 0.2) == 1:2)
-# @test(supported(basis, 0.5) == 2:3)
-# @test(supported(basis, 0.8) == 2:3)
-# @test(supported(basis, 1.0) == 2:3)
+basis = BSplineBasis(0, 1, 2, 2)
+testeval_snn(basis, 0, [1, 0], 1:2)
+testeval_snn(basis, 0.2, [0.6, 0.4], 1:2)
+testeval_snn(basis, 0.4, [0.2, 0.8], 1:2)
+testeval_snn(basis, 0.5, [1, 0], 2:3)
+testeval_snn(basis, 0.75, [0.5, 0.5], 2:3)
+testeval_snn(basis, 1, [0, 1], 2:3)
 
-# basis = uniform_bsbasis(1, 3, 0, 1)
-# @test_approx_eq(evaluate(basis, 0.0), [1, 0, 0])
-# @test_approx_eq(evaluate(basis, 0.3), [0.49, 0.42, 0.09])
-# @test_approx_eq(evaluate(basis, 0.8), [0.04, 0.32, 0.64])
+basis = BSplineBasis(0, 1, 1, 3)
+testeval_snn(basis, 0, [1, 0, 0], 1:3)
+testeval_snn(basis, 0.3, [0.49, 0.42, 0.09], 1:3)
+testeval_snn(basis, 0.8, [0.04, 0.32, 0.64], 1:3)
 
-# basis = uniform_bsbasis(2, 3, 0, 1)
-# @test(supported(basis, 0.0) == 1:3)
-# @test(supported(basis, 0.4) == 1:3)
-# @test(supported(basis, 0.5) == 2:4)
-# @test(supported(basis, 1.0) == 2:4)
+basis = BSplineBasis(0, 2, 2, 4)
+testeval_snn(basis, 0.2, [0.512, 0.434, 0.052, 0.002], 1:4)
+testeval_snn(basis, 0.7, [0.027, 0.49525, 0.392, 0.08575], 1:4)
+testeval_snn(basis, 1.0, [0.25, 0.5, 0.25, 0], 2:5)
+testeval_snn(basis, 1.5, [0.03125, 0.25, 0.59375, 0.125], 2:5)
+testeval_snn(basis, 2.0, [0, 0, 0, 1], 2:5)
 
-# basis = uniform_bsbasis(1, 4, 0, 2)
-# @test_approx_eq(evaluate(basis, 0.0), [1, 0, 0, 0])
-# @test_approx_eq(evaluate(basis, 0.7), [0.274625, 0.443625, 0.238875, 0.042875])
-# @test_approx_eq(evaluate(basis, 1.4), [0.027, 0.189, 0.441, 0.343])
+basis = BSplineBasis([0, 1, 3], 4)
+testeval_snn(basis, 0.5, [0.125, 0.680555555556, 0.18055555555555564, 0.013888888888888902], 1:4)
+testeval_snn(basis, 1.4, [0.227555555556, 0.483555555556, 0.280888888889, 0.008], 2:5)
+testeval_snn(basis, 2.1, [0.0405, 0.26325, 0.529875, 0.166375], 2:5)
 
-# basis = uniform_bsbasis(2, 4, 0, 2)
-# @test(supported(basis, 0.0) == 1:4)
-# @test(supported(basis, 1.0) == 2:5)
-# @test(supported(basis, 1.9) == 2:5)
-# @test(supported(basis, 2.0) == 2:5)
+# Multiple points, no derivatives, no coefficients
+function testeval_mnn(b, xs)
+    res = b(xs)
+    @test(typeof(res) <: Vector)
+    for (x, (vals, idxs)) in zip(xs, b(xs))
+        testeval_snn(b, x, vals, idxs)
+    end
+end
+testeval_mnn(BSplineBasis(0, 2, 2, 2), [0.0, 0.4, 0.8, 1.0, 1.5, 2.0])
+testeval_mnn(BSplineBasis(0, 3, 4, 3), [0.0, 0.4, 0.8, 1.0, 1.5, 2.0, 2.2, 2.8, 3.0])
+testeval_mnn(BSplineBasis([0, 1, 3, 4], 4), [0.0, 0.8, 1.6, 2.4, 3.2, 4.0])
 
 # function test_derivatives(basis, pt, dt=1e-6, tol=1e-8)
 #     lft = evaluate(basis, pt - dt, basis.order-1)

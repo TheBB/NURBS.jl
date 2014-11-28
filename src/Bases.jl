@@ -1,9 +1,7 @@
 module Bases
 
 import Iterators: groupby, imap
-
-# export Basis, dim, supported, evaluate_raw, evaluate,
-#        BSplineBasis, uniform_bsbasis
+import ..Utils: Interval
 
 export Basis, Basis1D, domain, deriv, order,
        BSplineBasis
@@ -14,8 +12,6 @@ export Basis, Basis1D, domain, deriv, order,
 
 abstract Basis
 abstract Basis1D <: Basis
-
-supported(b::Basis, pt::Real) = first(supported(b, Float64[pt]))[2]
 
 
 # B-Spline basis
@@ -66,8 +62,8 @@ Base.length(b::BSplineBasis) = length(b.knots) - b.order
 Base.size(b::BSplineBasis) = (length(b),)
 Base.getindex(b::BSplineBasis, i) = BSpline(b, i, 0)
 
-domain(b::BSplineBasis) = (b.knots[1], b.knots[end])
-domain(b::BSpline) = (b.basis.knots[b.index], b.basis.knots[b.index+b.basis.order])
+domain(b::BSplineBasis) = Interval(b.knots[1], b.knots[end])
+domain(b::BSpline) = Interval(b.basis.knots[b.index], b.basis.knots[b.index+b.basis.order])
 
 order(b::BSplineBasis) = b.order - b.deriv
 order(b::BSpline) = b.basis.order - b.basis.deriv - b.deriv
@@ -92,16 +88,11 @@ end
 Base.call(b::BSplineBasis, pts) = [b(pt) for pt in pts]
 Base.call(b::BSpline, pts) = [b(pt) for pt in pts]
 
-function Base.call(b::BSplineBasis, pts, coeffs)
-    imap(b(pts)) do i
-        (vals, idxs) = i
-        if length(size(coeffs)) == 1
-            dot(coeffs[idxs], vals)
-        else
-            coeffs[idxs,:]' * vals
-        end
-    end
-end
+Base.call(b::BSplineBasis, pts, coeffs::Vector) =
+    [dot(coeffs[idxs], vals) for (vals, idxs) in b(pts)]
+
+Base.call(b::BSplineBasis, pts, coeffs) =
+    [vals' * coeffs[idxs,:] for (vals, idxs) in b(pts)]
 
 function supported(b::BSplineBasis, pts::Vector{Float64})
     @assert(b.knots[1] <= pts[1] <= pts[end] <= b.knots[end])
@@ -118,6 +109,8 @@ function supported(b::BSplineBasis, pts::Vector{Float64})
         (pts[i[1][1]:i[end][1]], i[1][2] - b.order + 1 : i[1][2])
     end
 end
+
+supported(b::BSplineBasis, pt::Real) = first(supported(b, Float64[pt]))[2]
 
 function evaluate_raw(b::BSplineBasis, pt::Real, nder::Int, rng::UnitRange{Int})
     # Basis values of order 1 (piecewise constants)
