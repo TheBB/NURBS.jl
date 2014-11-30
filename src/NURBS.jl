@@ -1,6 +1,6 @@
 module NURBS
 
 include("Utils.jl")
-include("BSplineBasis.jl")
+include("Bases.jl")
 
 end  # module NURBS

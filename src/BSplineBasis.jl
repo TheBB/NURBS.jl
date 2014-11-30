@@ -1,23 +1,4 @@
-module Bases
-
-import Iterators: groupby, imap
-import ..Utils: Interval
-
-export Basis, Basis1D, domain, deriv, order,
-       BSplineBasis
-
-
-# Abstract Basis types
-# ========================================================================
-
-abstract Basis
-abstract Basis1D <: Basis
-
-
-# B-Spline basis
-# ========================================================================
-
-type BSplineBasis <: Basis1D
+immutable BSplineBasis <: Basis1D
     knots::Vector{Float64}
     order::Int
     deriv::Int
@@ -44,23 +25,14 @@ type BSplineBasis <: Basis1D
         BSplineBasis(linspace(lft, rgt, elements+1), order, 0)
 end
 
-type BSpline
-    basis::BSplineBasis
-    index::Int
-    deriv::Int
+typealias BSpline BasisFunction1D{BSplineBasis}
 
-    function BSpline(basis, index, deriv)
-        @assert(1 <= index <= length(basis))
-        @assert(0 <= deriv < basis.order - basis.deriv)
-        new(basis, index, deriv)
-    end
-
-    BSpline(basis, index) = BSpline(basis, index, 0)
-end
 
 Base.length(b::BSplineBasis) = length(b.knots) - b.order
 Base.size(b::BSplineBasis) = (length(b),)
 Base.getindex(b::BSplineBasis, i) = BSpline(b, i, 0)
+
+nderivs(b::BSplineBasis) = b.order - b.deriv - 1
 
 domain(b::BSplineBasis) = Interval(b.knots[1], b.knots[end])
 domain(b::BSpline) = Interval(b.basis.knots[b.index], b.basis.knots[b.index+b.basis.order])
@@ -70,71 +42,7 @@ order(b::BSpline) = b.basis.order - b.basis.deriv - b.deriv
 
 deriv(b::BSplineBasis) = BSplineBasis(b.knots, b.order, b.deriv+1, false)
 deriv(b::BSplineBasis, order) = BSplineBasis(b.knots, b.order, b.deriv+order, false)
-deriv(b::BSpline) = BSpline(b.basis, b.index, b.deriv+1)
-deriv(b::BSpline, order) = BSpline(b.basis, b.index, b.deriv+order)
 
-function Base.call{T<:Real}(b::BSplineBasis, pt::T)
-    rng = supported(b, pt)
-    (squeeze(evaluate_raw(b, [pt], b.deriv, rng), 2), rng)
-end
-
-function Base.call{T<:Real}(b::BSpline, pt::T)
-    rng = supported(b.basis, pt)
-    if b.index ∉ rng return 0.0 end
-    evaluate_raw(b.basis, [pt], b.deriv + b.basis.deriv, rng)[1 + b.index - rng.start, 1]
-end
-
-function Base.call{T<:Real}(b::BSplineBasis, pts::Vector{T})
-    res = (Vector{Float64}, UnitRange{Int})[]
-    sizehint(res, length(pts))
-
-    for (subpts, rng) in supported(b, pts)
-        out = evaluate_raw(b, subpts, b.deriv, rng)
-        for i in 1:length(subpts)
-            push!(res, (out[:,i], rng))
-        end
-    end
-
-    res
-end
-
-function Base.call{T<:Real}(b::BSpline, pts::Vector{T})
-    res = zeros(Float64, length(pts))
-
-    i = 1
-    for (subpts, rng) in supported(b.basis, pts)
-        i += length(subpts)
-        if b.index ∉ rng continue end
-
-        out = evaluate_raw(b.basis, subpts, b.basis.deriv + b.deriv, rng)
-        res[i-length(subpts):i-1] = out[findin(rng, b.index), :]
-    end
-
-    res
-end
-
-function Base.call{S<:Real, T<:Real}(b::BSplineBasis, pt::S, coeffs::Vector{T})
-    (vals, idxs) = b(pt)
-    dot(vals, coeffs[idxs])
-end
-
-function Base.call{S<:Real, T<:Real}(b::BSplineBasis, pt::S, coeffs::Matrix{T})
-    (vals, idxs) = b(pt)
-    vals' * coeffs[idxs,:]
-end
-
-Base.call{S<:Real, T<:Real}(b::BSplineBasis, pts::Vector{S}, coeffs::Vector{T}) =
-    Float64[dot(vals, coeffs[idxs]) for (vals, idxs) in b(pts)]
-
-function Base.call{S<:Real, T<:Real}(b::BSplineBasis, pts::Vector{S}, coeffs::Matrix{T})
-    res = zeros(Float64, length(pts), size(coeffs, 2))
-
-    for (i, (vals, idxs)) in enumerate(b(pts))
-        res[i,:] = vals' * coeffs[idxs,:]
-    end
-
-    res
-end
 
 function supported{T<:Real}(b::BSplineBasis, pt::T)
     kidx = b.order - 1 + searchsorted(b.knots[b.order:end], pt).stop
@@ -197,66 +105,4 @@ function evaluate_raw{T<:Real}(b::BSplineBasis, pts::Vector{T}, deriv::Int, rng:
     end
 
     bvals
-end
-
-end  # module Bases
-
-
-# NURBS basis
-# ========================================================================
-
-type NURBSBasis <: Basis1D
-    bs::BSplineBasis
-    weights::Vector{Float64}
-
-    function NURBSBasis(basis::BSplineBasis, weights)
-        @assert(length(basis) == length(weights))
-        new(basis, weights)
-    end
-
-    NURBSBasis(b::BSplineBasis) = NURBSBasis(b, ones(length(b)))
-end
-
-type NURBS
-    basis::NURBSBasis
-    index::Int
-    deriv::Int
-
-    function NURBS(basis, index, deriv)
-        @assert(1 <= index <= length(basis))
-        @assert(0 <= deriv < basis.bs.order - basis.deriv)
-        new(basis, index, deriv)
-    end
-
-    NURBS(basis, index) = BSpline(basis, index, 0)
-end
-
-supported{T<:Real}(b::NURBSBasis, pt::T) = supported(b.bs, pt)
-supported{T<:Real}(b::NURBSBasis, pts::Vector{T}) = supported(b.bs, pts)
-
-function evaluate_raw{T<:Real}(b::NURBSBasis, pts::Vector{T}, deriv::Int, rng::UnitRange{Int})
-    bvals = evaluate_raw(b.bs, pts, 0, rng)
-    wts = b.weights[rng]' * bvals
-
-    if deriv == 0
-        return bvals .* b.weights[rng] ./ wts
-    end
-
-    bvals1 = evaluate_raw(b.bs, pts, 1, rng)
-    wts1 = b.weights[rng]' * bvals
-    d1 = (bvals1 .* wts - bvals .* wts1) ./ (wts .^ 2)
-
-    if deriv == 1
-        return d1
-    end
-
-    bvals2 = evaluate_raw(b.bs, pts, 2, rng)
-    wts2 = b.weights[rng]' * bvals
-    d2 = (bvals2 .* wts - bvals .* wts2) ./ (wts .^ 2)
-
-    if deriv == 2
-        return d2 - 2 * d1 .* wts1 ./ wts
-    end
-
-    throw(ArgumentError("Third order derivatives or higher are not supported by NURBS bases"))
 end
