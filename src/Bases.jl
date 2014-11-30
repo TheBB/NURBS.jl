@@ -100,7 +100,6 @@ end
 
 function Base.call{T<:Real}(b::BSpline, pts::Vector{T})
     res = zeros(Float64, length(pts))
-    sizehint(res, length(pts))
 
     i = 1
     for (subpts, rng) in supported(b.basis, pts)
@@ -114,18 +113,28 @@ function Base.call{T<:Real}(b::BSpline, pts::Vector{T})
     res
 end
 
-function Base.call(b::BSplineBasis, pt::Real, coeffs::Vector)
+function Base.call{S<:Real, T<:Real}(b::BSplineBasis, pt::S, coeffs::Vector{T})
     (vals, idxs) = b(pt)
     dot(vals, coeffs[idxs])
 end
 
-function Base.call(b::BSplineBasis, pt::Real, coeffs)
+function Base.call{S<:Real, T<:Real}(b::BSplineBasis, pt::S, coeffs::Matrix{T})
     (vals, idxs) = b(pt)
     vals' * coeffs[idxs,:]
 end
 
-Base.call(b::BSplineBasis, pts, coeffs::Vector) = [b(pt, coeffs) for pt in pts]
-Base.call(b::BSplineBasis, pts, coeffs) = vcat([b(pt, coeffs) for pt in pts]...)
+Base.call{S<:Real, T<:Real}(b::BSplineBasis, pts::Vector{S}, coeffs::Vector{T}) =
+    Float64[dot(vals, coeffs[idxs]) for (vals, idxs) in b(pts)]
+
+function Base.call{S<:Real, T<:Real}(b::BSplineBasis, pts::Vector{S}, coeffs::Matrix{T})
+    res = zeros(Float64, length(pts), size(coeffs, 2))
+
+    for (i, (vals, idxs)) in enumerate(b(pts))
+        res[i,:] = vals' * coeffs[idxs,:]
+    end
+
+    res
+end
 
 function supported{T<:Real}(b::BSplineBasis, pt::T)
     kidx = b.order - 1 + searchsorted(b.knots[b.order:end], pt).stop
