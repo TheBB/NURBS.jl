@@ -75,14 +75,14 @@ deriv(b::BSpline, order) = BSpline(b.basis, b.index, b.deriv+order)
 
 function Base.call(b::BSplineBasis, pt::Real)
     rng = supported(b, pt)
-    (evaluate_raw(b, pt, b.deriv, rng), rng)
+    (squeeze(evaluate_raw(b, [pt], b.deriv, rng), 2), rng)
 end
 
 function Base.call(b::BSpline, pt::Real)
     rng = supported(b.basis, pt)
     if b.index ∉ rng return 0.0 end
     der = b.deriv + b.basis.deriv
-    evaluate_raw(b.basis, pt, der, rng)[1 + b.index - rng.start]
+    evaluate_raw(b.basis, [pt], der, rng)[1 + b.index - rng.start, 1]
 end
 
 Base.call(b::BSplineBasis, pts) = [b(pt) for pt in pts]
@@ -120,32 +120,35 @@ end
 
 supported(b::BSplineBasis, pt::Real) = first(supported(b, Float64[pt]))[2]
 
-function evaluate_raw(b::BSplineBasis, pt::Real, deriv::Int, rng::UnitRange{Int})
+macro bs_er_scale(bvals, knots, mid, num)
+    :($bvals ./= $knots[$mid:$mid+$num] - $knots[$mid-$num-1:$mid-1])
+end
+
+function evaluate_raw{T<:Real}(b::BSplineBasis, pts::Vector{T}, deriv::Int, rng::UnitRange{Int})
     # Basis values of order 1 (piecewise constants)
-    bvals = zeros(Float64, b.order)
-    bvals[end] = 1.0
+    bvals = zeros(Float64, (b.order, length(pts)))
+    bvals[end,:] = 1.0
 
     const p = b.order
     const bi = rng.start + p
-    col = deriv + 1
 
-    # Iterate over orders
-    for k in 0:p-2
-        # Scale basis functions
-        dxs = b.knots[bi : bi+k] - b.knots[bi-k-1 : bi-1]
-        bvals[p-k:end] ./= dxs
+    # Order increment
+    for k in 0:p-deriv-2
+        @bs_er_scale(bvals[p-k:end], b.knots, bi, k)
 
-        if k > p-2-deriv
-            # Differentiate the remainder
-            # This 'unscales' the functions
-            bvals = [bvals[1:end-1] - bvals[2:end]; bvals[end]] * (k + 1)
-        else
-            # Apply order increment formula to the highest level
-            # This also 'unscales' the functions
-            lft = (pt - b.knots[bi-k-2:bi-1]) .* bvals[p-k-1:end]
-            rgt = [(b.knots[bi:bi+k] - pt) .* bvals[p-k:end], 0]
-            bvals[p-k-1:end] = lft + rgt
+        for (i, kp, kn) in zip(p-k-1:p-1, b.knots[bi-k-2:bi-2], b.knots[bi:bi+k])
+            bvals[i,:] .*= (pts - kp)'
+            bvals[i,:] += bvals[i+1,:] .* (kn - pts)'
         end
+        bvals[end,:] .*= (pts - b.knots[bi-1])'
+    end
+
+    # Differentiation
+    for k = p-deriv-1:p-2
+        @bs_er_scale(bvals[p-k:end], b.knots, bi, k)
+
+        bvals[1:end-1,:] = -diff(bvals, 1)
+        bvals *= k + 1
     end
 
     bvals
