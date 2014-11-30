@@ -60,6 +60,16 @@ function testeval_snn(b, x, vals, idxs)
 
     coeffs = rand(length(b))
     @test_approx_eq(dot(coeffs[ridxs], vals), b(x, coeffs))
+
+    for (v, i) in zip(vals, idxs)
+        @test_approx_eq(b[i](x), v)
+    end
+
+    for i in 1:length(b)
+        if !(i in idxs)
+            @test_approx_eq(b[i](x), 0.0)
+        end
+    end
 end
 
 basis = BSplineBasis(0, 1, 2, 2)
@@ -84,7 +94,7 @@ testeval_snn(basis, 2.0, [0, 0, 0, 1], 2:5)
 
 basis = BSplineBasis([0, 1, 3], 4)
 testeval_snn(basis, 0.5, [0.125, 0.680555555556, 0.18055555555555564, 0.013888888888888902], 1:4)
-testeval_snn(basis, 1.4, [0.227555555556, 0.483555555556, 0.280888888889, 0.008], 2:5)
+testeval_snn(basis, 1.4, [0.227555555555557, 0.483555555556, 0.280888888889, 0.008], 2:5)
 testeval_snn(basis, 2.1, [0.0405, 0.26325, 0.529875, 0.166375], 2:5)
 
 
@@ -102,9 +112,28 @@ function testeval_mnn(b, xs)
         @test_approx_eq(vals' * coeffs[idxs,:], resc[i,:])
     end
 end
-testeval_mnn(BSplineBasis(0, 2, 2, 2), [0.0, 0.4, 0.8, 1.0, 1.5, 2.0])
-testeval_mnn(BSplineBasis(0, 3, 4, 3), [0.0, 0.4, 0.8, 1.0, 1.5, 2.0, 2.2, 2.8, 3.0])
-testeval_mnn(BSplineBasis([0, 1, 3, 4], 4), [0.0, 0.8, 1.6, 2.4, 3.2, 4.0])
+
+basis = BSplineBasis(0, 2, 2, 2)
+pts = [0.0, 0.4, 0.8, 1.0, 1.5, 2.0]
+testeval_mnn(basis, pts)
+@test_approx_eq(basis[1](pts), [1.0, 0.6, 0.2, zeros(3)])
+@test_approx_eq(basis[2](pts), [0.0, 0.4, 0.8, 1.0, 0.5, 0.0])
+@test_approx_eq(basis[3](pts), [zeros(4), 0.5, 1.0])
+
+basis = BSplineBasis(0, 3, 4, 3)
+pts = [0.0, 0.4, 0.8, 1.0, 1.5, 2.0, 2.2, 2.8, 3.0]
+testeval_mnn(basis, pts)
+@test_approx_eq(basis[1](pts), [1.0, 0.2177777777777774, zeros(7)])
+@test_approx_eq(basis[3](pts), [0.0, 0.1422222222222222, 0.56222222222222222, 0.722222222222222,
+                                0.5, 0.0555555555555555, 0.00222222222222222, 0.0, 0.0])
+@test_approx_eq(basis[6](pts), [zeros(7), 0.53777777777777777, 1.0])
+
+basis = BSplineBasis([0, 1, 3, 4], 4)
+pts = [0.0, 0.8, 1.6, 2.4, 3.2, 4.0]
+testeval_mnn(basis, pts)
+@test_approx_eq(basis[2](pts), [0.0, 0.5795555555555555, 0.15244444444444444, 0.012, zeros(2)])
+@test_approx_eq(basis[4](pts), [0.0, 0.0426666666666666, 0.29333333333333333, 0.542222222222222,
+                                0.3697777777777777, 0.0])
 
 
 # Single point, derivatives
@@ -117,6 +146,16 @@ function testeval_sdn(b, x, dt=1e-6, tol=1e-8)
 
     coeffs = rand(length(b), 4)
     @test_approx_eq(dvals' * coeffs[didxs,:], deriv(b)(x, coeffs))
+
+    for (v, i) in zip(dvals, didxs)
+        @test_approx_eq(deriv(b[i])(x), v)
+    end
+
+    for i in 1:length(b)
+        if !(i in didxs)
+            @test_approx_eq(deriv(b[i])(x), 0.0)
+        end
+    end
 end
 
 basis = BSplineBasis(0, 1, 2, 2)
@@ -178,3 +217,42 @@ for i in 1:3
     testeval_mdn(basis, linspace(5.5, 14.5, 10))
     basis = deriv(basis)
 end
+
+
+# BSplineBasis indexing
+# ========================================================================
+
+basis = BSplineBasis(0, 4, 4, 2)
+@test_throws(ErrorException, basis[0])
+@test_throws(ErrorException, basis[6])
+@test(basis[1].basis == basis)
+@test(basis[2].index == 2)
+@test(basis[5].deriv == 0)
+@test(domain(basis[1]) == Interval(0, 1))
+@test(domain(basis[2]) == Interval(0, 2))
+@test(domain(basis[5]) == Interval(3, 4))
+@test(deriv(basis[1]).basis == basis)
+@test(deriv(basis[2]).index == 2)
+@test(deriv(basis[3]).deriv == 1)
+@test_throws(ErrorException, deriv(deriv(basis[2])))
+
+basis = BSplineBasis([0, 4, 5, 6], 4)
+@test_throws(ErrorException, basis[7])
+@test(basis[6].basis == basis)
+@test(basis[2].deriv == 0)
+@test(basis[1].index == 1)
+@test(domain(basis[1]) == Interval(0, 4))
+@test(domain(basis[2]) == Interval(0, 5))
+@test(domain(basis[3]) == Interval(0, 6))
+@test(domain(basis[4]) == Interval(0, 6))
+@test(domain(basis[5]) == Interval(4, 6))
+@test(domain(basis[6]) == Interval(5, 6))
+@test(deriv(basis[1]).basis == basis)
+@test(deriv(basis[4]).index == 4)
+@test(deriv(deriv(basis[4])).deriv == 2)
+@test_throws(ErrorException, deriv(deriv(deriv(deriv(basis[3])))))
+
+basis = deriv(basis)
+@test(deriv(basis[2]).deriv == 1)
+@test(deriv(basis[2]).basis.deriv == 1)
+@test_throws(ErrorException, deriv(deriv(deriv(basis[1]))))

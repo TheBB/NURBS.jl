@@ -51,7 +51,7 @@ type BSpline
 
     function BSpline(basis, index, deriv)
         @assert(1 <= index <= length(basis))
-        @assert(0 <= deriv < basis.order)
+        @assert(0 <= deriv < basis.order - basis.deriv)
         new(basis, index, deriv)
     end
 
@@ -86,7 +86,7 @@ function Base.call(b::BSpline, pt::Real)
 end
 
 Base.call(b::BSplineBasis, pts) = [b(pt) for pt in pts]
-Base.call(b::BSpline, pts) = [b(pt) for pt in pts]
+Base.call(b::BSpline, pts) = Float64[b(pt) for pt in pts]
 
 function Base.call(b::BSplineBasis, pt::Real, coeffs::Vector)
     (vals, idxs) = b(pt)
