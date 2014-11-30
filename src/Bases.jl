@@ -73,44 +73,91 @@ deriv(b::BSplineBasis, order) = BSplineBasis(b.knots, b.order, b.deriv+order, fa
 deriv(b::BSpline) = BSpline(b.basis, b.index, b.deriv+1)
 deriv(b::BSpline, order) = BSpline(b.basis, b.index, b.deriv+order)
 
-function Base.call(b::BSplineBasis, pt::Real)
+function Base.call{T<:Real}(b::BSplineBasis, pt::T)
     rng = supported(b, pt)
-    (squeeze(evaluate_raw(b, pt, b.deriv, rng)[:, 1 + b.deriv], 2), rng)
+    (squeeze(evaluate_raw(b, [pt], b.deriv, rng), 2), rng)
 end
 
-function Base.call(b::BSpline, pt::Real)
+function Base.call{T<:Real}(b::BSpline, pt::T)
     rng = supported(b.basis, pt)
     if b.index ∉ rng return 0.0 end
-    der = b.deriv + b.basis.deriv
-    evaluate_raw(b.basis, pt, der, rng)[1 + b.index - rng.start, 1 + der]
+    evaluate_raw(b.basis, [pt], b.deriv + b.basis.deriv, rng)[1 + b.index - rng.start, 1]
 end
 
-Base.call(b::BSplineBasis, pts) = [b(pt) for pt in pts]
-Base.call(b::BSpline, pts) = Float64[b(pt) for pt in pts]
+function Base.call{T<:Real}(b::BSplineBasis, pts::Vector{T})
+    res = (Vector{Float64}, UnitRange{Int})[]
+    sizehint(res, length(pts))
 
-function Base.call(b::BSplineBasis, pt::Real, coeffs::Vector)
+    for (subpts, rng) in supported(b, pts)
+        out = evaluate_raw(b, subpts, b.deriv, rng)
+        for i in 1:length(subpts)
+            push!(res, (out[:,i], rng))
+        end
+    end
+
+    res
+end
+
+function Base.call{T<:Real}(b::BSpline, pts::Vector{T})
+    res = zeros(Float64, length(pts))
+
+    i = 1
+    for (subpts, rng) in supported(b.basis, pts)
+        i += length(subpts)
+        if b.index ∉ rng continue end
+
+        out = evaluate_raw(b.basis, subpts, b.basis.deriv + b.deriv, rng)
+        res[i-length(subpts):i-1] = out[findin(rng, b.index), :]
+    end
+
+    res
+end
+
+function Base.call{S<:Real, T<:Real}(b::BSplineBasis, pt::S, coeffs::Vector{T})
     (vals, idxs) = b(pt)
     dot(vals, coeffs[idxs])
 end
 
-function Base.call(b::BSplineBasis, pt::Real, coeffs)
+function Base.call{S<:Real, T<:Real}(b::BSplineBasis, pt::S, coeffs::Matrix{T})
     (vals, idxs) = b(pt)
     vals' * coeffs[idxs,:]
 end
 
-Base.call(b::BSplineBasis, pts, coeffs::Vector) = [b(pt, coeffs) for pt in pts]
-Base.call(b::BSplineBasis, pts, coeffs) = vcat([b(pt, coeffs) for pt in pts]...)
+Base.call{S<:Real, T<:Real}(b::BSplineBasis, pts::Vector{S}, coeffs::Vector{T}) =
+    Float64[dot(vals, coeffs[idxs]) for (vals, idxs) in b(pts)]
 
-function supported(b::BSplineBasis, pts::Vector{Float64})
+function Base.call{S<:Real, T<:Real}(b::BSplineBasis, pts::Vector{S}, coeffs::Matrix{T})
+    res = zeros(Float64, length(pts), size(coeffs, 2))
+
+    for (i, (vals, idxs)) in enumerate(b(pts))
+        res[i,:] = vals' * coeffs[idxs,:]
+    end
+
+    res
+end
+
+function supported{T<:Real}(b::BSplineBasis, pt::T)
+    kidx = b.order - 1 + searchsorted(b.knots[b.order:end], pt).stop
+    stop = b.knots[kidx] == b.knots[end] ? kidx - b.order : kidx
+    stop - b.order + 1 : stop
+end
+
+function supported{T<:Real}(b::BSplineBasis, pts::Vector{T})
     (min, max) = extrema(pts)
     @assert(min in domain(b) && max in domain(b))
 
     idxs = zeros(Int, length(pts))
 
-    kidx = b.order
-    for (i, pt) in enumerate(pts)
-        kidx = kidx - 1 + searchsorted(b.knots[kidx:end], pt).stop
-        idxs[i] = b.knots[kidx] == b.knots[end] ? kidx - b.order : kidx
+    if !issorted(pts)
+        for (i, pt) in enumerate(pts)
+            idxs[i] = supported(b, pt).stop
+        end
+    else
+        kidx = b.order
+        for (i, pt) in enumerate(pts)
+            kidx = kidx - 1 + searchsorted(b.knots[kidx:end], pt).stop
+            idxs[i] = b.knots[kidx] == b.knots[end] ? kidx - b.order : kidx
+        end
     end
 
     imap(groupby(enumerate(idxs), i -> i[2])) do i
@@ -118,40 +165,35 @@ function supported(b::BSplineBasis, pts::Vector{Float64})
     end
 end
 
-supported(b::BSplineBasis, pt::Real) = first(supported(b, Float64[pt]))[2]
+macro bs_er_scale(bvals, knots, mid, num)
+    :($bvals ./= $knots[$mid:$mid+$num] - $knots[$mid-$num-1:$mid-1])
+end
 
-function evaluate_raw(b::BSplineBasis, pt::Real, nder::Int, rng::UnitRange{Int})
+function evaluate_raw{T<:Real}(b::BSplineBasis, pts::Vector{T}, deriv::Int, rng::UnitRange{Int})
     # Basis values of order 1 (piecewise constants)
-    bvals = zeros(Float64, (b.order,  nder+1))
-    bvals[end,end] = 1.0
+    bvals = zeros(Float64, (b.order, length(pts)))
+    bvals[end,:] = 1.0
 
     const p = b.order
     const bi = rng.start + p
-    col = nder + 1
 
-    # Iterate over orders
-    for k in 0:p-2
-        # Scale basis functions
-        dxs = b.knots[bi : bi+k] - b.knots[bi-k-1 : bi-1]
-        bvals[p-k:end, col:end] ./= dxs
+    # Order increment
+    for k in 0:p-deriv-2
+        @bs_er_scale(bvals[p-k:end,:], b.knots, bi, k)
 
-        if k > p-2-nder
-            # Copy scaled basis functions to next level
-            bvals[:, col-1] = bvals[:, col]
-
-            # Differentiate the remainder
-            # This 'unscales' the functions
-            bvals[:, col:end] = [bvals[1:end-1, col:end] - bvals[2:end, col:end];
-                                 bvals[end, col:end]] * (k + 1)
-
-            col -= 1
+        for (i, kp, kn) in zip(p-k-1:p-1, b.knots[bi-k-2:bi-2], b.knots[bi:bi+k])
+            bvals[i,:] .*= (pts - kp)'
+            bvals[i,:] += bvals[i+1,:] .* (kn - pts)'
         end
+        bvals[end,:] .*= (pts - b.knots[bi-1])'
+    end
 
-        # Apply order increment formula to the highest level
-        # This also 'unscales' the functions
-        lft = (pt - b.knots[bi-k-2:bi-1]) .* bvals[p-k-1:end, col]
-        rgt = [(b.knots[bi:bi+k] - pt) .* bvals[p-k:end, col], 0]
-        bvals[p-k-1:end, col] = lft + rgt
+    # Differentiation
+    for k = p-deriv-1:p-2
+        @bs_er_scale(bvals[p-k:end,:], b.knots, bi, k)
+
+        bvals[1:end-1,:] = -diff(bvals, 1)
+        bvals *= k + 1
     end
 
     bvals
