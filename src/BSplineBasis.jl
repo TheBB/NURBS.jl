@@ -39,10 +39,10 @@ type BSplineBasis <: Basis1D
 
         new(knots, order, deriv)
     end
-end
 
-BSplineBasis(lft::Real, rgt::Real, elements::Int, order::Int) =
-    BSplineBasis(linspace(lft, rgt, elements+1), order, 0)
+    BSplineBasis(lft::Real, rgt::Real, elements::Int, order::Int) =
+        BSplineBasis(linspace(lft, rgt, elements+1), order, 0)
+end
 
 type BSpline
     basis::BSplineBasis
@@ -200,3 +200,63 @@ function evaluate_raw{T<:Real}(b::BSplineBasis, pts::Vector{T}, deriv::Int, rng:
 end
 
 end  # module Bases
+
+
+# NURBS basis
+# ========================================================================
+
+type NURBSBasis <: Basis1D
+    bs::BSplineBasis
+    weights::Vector{Float64}
+
+    function NURBSBasis(basis::BSplineBasis, weights)
+        @assert(length(basis) == length(weights))
+        new(basis, weights)
+    end
+
+    NURBSBasis(b::BSplineBasis) = NURBSBasis(b, ones(length(b)))
+end
+
+type NURBS
+    basis::NURBSBasis
+    index::Int
+    deriv::Int
+
+    function NURBS(basis, index, deriv)
+        @assert(1 <= index <= length(basis))
+        @assert(0 <= deriv < basis.bs.order - basis.deriv)
+        new(basis, index, deriv)
+    end
+
+    NURBS(basis, index) = BSpline(basis, index, 0)
+end
+
+supported{T<:Real}(b::NURBSBasis, pt::T) = supported(b.bs, pt)
+supported{T<:Real}(b::NURBSBasis, pts::Vector{T}) = supported(b.bs, pts)
+
+function evaluate_raw{T<:Real}(b::NURBSBasis, pts::Vector{T}, deriv::Int, rng::UnitRange{Int})
+    bvals = evaluate_raw(b.bs, pts, 0, rng)
+    wts = b.weights[rng]' * bvals
+
+    if deriv == 0
+        return bvals .* b.weights[rng] ./ wts
+    end
+
+    bvals1 = evaluate_raw(b.bs, pts, 1, rng)
+    wts1 = b.weights[rng]' * bvals
+    d1 = (bvals1 .* wts - bvals .* wts1) ./ (wts .^ 2)
+
+    if deriv == 1
+        return d1
+    end
+
+    bvals2 = evaluate_raw(b.bs, pts, 2, rng)
+    wts2 = b.weights[rng]' * bvals
+    d2 = (bvals2 .* wts - bvals .* wts2) ./ (wts .^ 2)
+
+    if deriv == 2
+        return d2 - 2 * d1 .* wts1 ./ wts
+    end
+
+    throw(ArgumentError("Third order derivatives or higher are not supported by NURBS bases"))
+end
