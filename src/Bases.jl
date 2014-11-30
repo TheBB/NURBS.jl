@@ -73,20 +73,46 @@ deriv(b::BSplineBasis, order) = BSplineBasis(b.knots, b.order, b.deriv+order, fa
 deriv(b::BSpline) = BSpline(b.basis, b.index, b.deriv+1)
 deriv(b::BSpline, order) = BSpline(b.basis, b.index, b.deriv+order)
 
-function Base.call(b::BSplineBasis, pt::Real)
+function Base.call{T<:Real}(b::BSplineBasis, pt::T)
     rng = supported(b, pt)
     (squeeze(evaluate_raw(b, [pt], b.deriv, rng), 2), rng)
 end
 
-function Base.call(b::BSpline, pt::Real)
+function Base.call{T<:Real}(b::BSpline, pt::T)
     rng = supported(b.basis, pt)
     if b.index ∉ rng return 0.0 end
-    der = b.deriv + b.basis.deriv
-    evaluate_raw(b.basis, [pt], der, rng)[1 + b.index - rng.start, 1]
+    evaluate_raw(b.basis, [pt], b.deriv + b.basis.deriv, rng)[1 + b.index - rng.start, 1]
 end
 
-Base.call(b::BSplineBasis, pts) = [b(pt) for pt in pts]
-Base.call(b::BSpline, pts) = Float64[b(pt) for pt in pts]
+function Base.call{T<:Real}(b::BSplineBasis, pts::Vector{T})
+    res = (Vector{Float64}, UnitRange{Int})[]
+    sizehint(res, length(pts))
+
+    for (subpts, rng) in supported(b, pts)
+        out = evaluate_raw(b, subpts, b.deriv, rng)
+        for i in 1:length(subpts)
+            push!(res, (out[:,i], rng))
+        end
+    end
+
+    res
+end
+
+function Base.call{T<:Real}(b::BSpline, pts::Vector{T})
+    res = zeros(Float64, length(pts))
+    sizehint(res, length(pts))
+
+    i = 1
+    for (subpts, rng) in supported(b.basis, pts)
+        i += length(subpts)
+        if b.index ∉ rng continue end
+
+        out = evaluate_raw(b.basis, subpts, b.basis.deriv + b.deriv, rng)
+        res[i-length(subpts):i-1] = out[findin(rng, b.index), :]
+    end
+
+    res
+end
 
 function Base.call(b::BSplineBasis, pt::Real, coeffs::Vector)
     (vals, idxs) = b(pt)
@@ -144,7 +170,7 @@ function evaluate_raw{T<:Real}(b::BSplineBasis, pts::Vector{T}, deriv::Int, rng:
 
     # Order increment
     for k in 0:p-deriv-2
-        @bs_er_scale(bvals[p-k:end], b.knots, bi, k)
+        @bs_er_scale(bvals[p-k:end,:], b.knots, bi, k)
 
         for (i, kp, kn) in zip(p-k-1:p-1, b.knots[bi-k-2:bi-2], b.knots[bi:bi+k])
             bvals[i,:] .*= (pts - kp)'
@@ -155,7 +181,7 @@ function evaluate_raw{T<:Real}(b::BSplineBasis, pts::Vector{T}, deriv::Int, rng:
 
     # Differentiation
     for k = p-deriv-1:p-2
-        @bs_er_scale(bvals[p-k:end], b.knots, bi, k)
+        @bs_er_scale(bvals[p-k:end,:], b.knots, bi, k)
 
         bvals[1:end-1,:] = -diff(bvals, 1)
         bvals *= k + 1
