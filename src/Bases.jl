@@ -1,69 +1,109 @@
 module Bases
 
 import Iterators: groupby, imap
+import ..Utils: Interval
 
-export Basis, dim, supported, evaluate_raw, evaluate,
-       BSplineBasis, uniform_bsbasis
+export Basis, Basis1D, domain, deriv, order,
+       BSplineBasis
 
 
-# Abstract Basis type
+# Abstract Basis types
 # ========================================================================
-#
-# A subtype MyBasis <: Basis should implement the following functions.
-#
-# dim(b::MyBasis)
-#     Dimension of the basis.
-#
-# supported(b::MyBasis, pts::Vector{Float64})
-#     Organizes the points into subsets on which the same basis functions are supported.
-#     Returns any iterator of (Vector{Float64}, Range).
-#     May assume that pts is sorted.
-#
-# evaluate_raw(b::MyBasis, pt::Float64, nder::Int, rng::Range)
-#     Evaluate the basis functions in rng at pt, as well as their first nder derivatives.
-#     Returns an array of dimensions |rng| × (nder+1).
-#     May assume that rng == supported(b, pt).
 
 abstract Basis
-
-evaluate(b::Basis, pt::Float64, nder::Int) = evaluate_raw(b, pt, nder, supported(b, pt))
-evaluate(b::Basis, pt::Float64) = evaluate_raw(b, pt, 0, supported(b, pt))[:]
-supported(b::Basis, pt::Float64) = first(supported(b, [pt]))[2]
+abstract Basis1D <: Basis
 
 
 # B-Spline basis
 # ========================================================================
 
-type BSplineBasis <: Basis
+type BSplineBasis <: Basis1D
     knots::Vector{Float64}
     order::Int
+    deriv::Int
 
-    function BSplineBasis(knots, order, extend=true)
+    function BSplineBasis(knots, order, deriv=0, extend=true)
+        @assert(deriv < order)
+
         for (kn, kp) in zip(knots[2:end], knots[1:end-1])
-            @assert(kn >= kp, "Knot vector must be nondecreasing")
+            @assert(kn >= kp)
         end
 
         if extend
             knots = [fill(knots[1], order-1), knots, fill(knots[end], order-1)]
         else
             for d in 1:order-1
-                @assert(knots[1+d] == knots[1] && knots[end-d] == knots[end],
-                        "Expected $order repeated knots on either end")
+                @assert(knots[1+d] == knots[1] && knots[end-d] == knots[end])
             end
         end
 
-        new(knots, order)
+        new(knots, order, deriv)
     end
 end
 
-uniform_bsbasis(elements, order=4, lower=0.0, upper=1.0) =
-    BSplineBasis(linspace(lower, upper, elements+1), order)
+BSplineBasis(lft::Real, rgt::Real, elements::Int, order::Int) =
+    BSplineBasis(linspace(lft, rgt, elements+1), order, 0)
 
-dim(basis::BSplineBasis) = length(basis.knots) - basis.order
+type BSpline
+    basis::BSplineBasis
+    index::Int
+    deriv::Int
+
+    function BSpline(basis, index, deriv)
+        @assert(1 <= index <= length(basis))
+        @assert(0 <= deriv < basis.order - basis.deriv)
+        new(basis, index, deriv)
+    end
+
+    BSpline(basis, index) = BSpline(basis, index, 0)
+end
+
+Base.length(b::BSplineBasis) = length(b.knots) - b.order
+Base.size(b::BSplineBasis) = (length(b),)
+Base.getindex(b::BSplineBasis, i) = BSpline(b, i, 0)
+
+domain(b::BSplineBasis) = Interval(b.knots[1], b.knots[end])
+domain(b::BSpline) = Interval(b.basis.knots[b.index], b.basis.knots[b.index+b.basis.order])
+
+order(b::BSplineBasis) = b.order - b.deriv
+order(b::BSpline) = b.basis.order - b.basis.deriv - b.deriv
+
+deriv(b::BSplineBasis) = BSplineBasis(b.knots, b.order, b.deriv+1, false)
+deriv(b::BSplineBasis, order) = BSplineBasis(b.knots, b.order, b.deriv+order, false)
+deriv(b::BSpline) = BSpline(b.basis, b.index, b.deriv+1)
+deriv(b::BSpline, order) = BSpline(b.basis, b.index, b.deriv+order)
+
+function Base.call(b::BSplineBasis, pt::Real)
+    rng = supported(b, pt)
+    (squeeze(evaluate_raw(b, pt, b.deriv, rng)[:, 1 + b.deriv], 2), rng)
+end
+
+function Base.call(b::BSpline, pt::Real)
+    rng = supported(b.basis, pt)
+    if b.index ∉ rng return 0.0 end
+    der = b.deriv + b.basis.deriv
+    evaluate_raw(b.basis, pt, der, rng)[1 + b.index - rng.start, 1 + der]
+end
+
+Base.call(b::BSplineBasis, pts) = [b(pt) for pt in pts]
+Base.call(b::BSpline, pts) = Float64[b(pt) for pt in pts]
+
+function Base.call(b::BSplineBasis, pt::Real, coeffs::Vector)
+    (vals, idxs) = b(pt)
+    dot(vals, coeffs[idxs])
+end
+
+function Base.call(b::BSplineBasis, pt::Real, coeffs)
+    (vals, idxs) = b(pt)
+    vals' * coeffs[idxs,:]
+end
+
+Base.call(b::BSplineBasis, pts, coeffs::Vector) = [b(pt, coeffs) for pt in pts]
+Base.call(b::BSplineBasis, pts, coeffs) = vcat([b(pt, coeffs) for pt in pts]...)
 
 function supported(b::BSplineBasis, pts::Vector{Float64})
-    @assert(b.knots[1] <= pts[1] <= pts[end] <= b.knots[end],
-            "Evaluation points must lie within parameter domain")
+    (min, max) = extrema(pts)
+    @assert(min in domain(b) && max in domain(b))
 
     idxs = zeros(Int, length(pts))
 
@@ -78,9 +118,9 @@ function supported(b::BSplineBasis, pts::Vector{Float64})
     end
 end
 
-function evaluate_raw(b::BSplineBasis, pt::Float64, nder::Int, rng::UnitRange{Int})
-    @assert(nder < b.order, "Higher order derivatives not supported")
+supported(b::BSplineBasis, pt::Real) = first(supported(b, Float64[pt]))[2]
 
+function evaluate_raw(b::BSplineBasis, pt::Real, nder::Int, rng::UnitRange{Int})
     # Basis values of order 1 (piecewise constants)
     bvals = zeros(Float64, (b.order,  nder+1))
     bvals[end,end] = 1.0
