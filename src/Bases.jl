@@ -75,14 +75,14 @@ deriv(b::BSpline, order) = BSpline(b.basis, b.index, b.deriv+order)
 
 function Base.call(b::BSplineBasis, pt::Real)
     rng = supported(b, pt)
-    (squeeze(evaluate_raw(b, pt, b.deriv, rng)[:, 1 + b.deriv], 2), rng)
+    (evaluate_raw(b, pt, b.deriv, rng), rng)
 end
 
 function Base.call(b::BSpline, pt::Real)
     rng = supported(b.basis, pt)
     if b.index ∉ rng return 0.0 end
     der = b.deriv + b.basis.deriv
-    evaluate_raw(b.basis, pt, der, rng)[1 + b.index - rng.start, 1 + der]
+    evaluate_raw(b.basis, pt, der, rng)[1 + b.index - rng.start]
 end
 
 Base.call(b::BSplineBasis, pts) = [b(pt) for pt in pts]
@@ -120,38 +120,32 @@ end
 
 supported(b::BSplineBasis, pt::Real) = first(supported(b, Float64[pt]))[2]
 
-function evaluate_raw(b::BSplineBasis, pt::Real, nder::Int, rng::UnitRange{Int})
+function evaluate_raw(b::BSplineBasis, pt::Real, deriv::Int, rng::UnitRange{Int})
     # Basis values of order 1 (piecewise constants)
-    bvals = zeros(Float64, (b.order,  nder+1))
-    bvals[end,end] = 1.0
+    bvals = zeros(Float64, b.order)
+    bvals[end] = 1.0
 
     const p = b.order
     const bi = rng.start + p
-    col = nder + 1
+    col = deriv + 1
 
     # Iterate over orders
     for k in 0:p-2
         # Scale basis functions
         dxs = b.knots[bi : bi+k] - b.knots[bi-k-1 : bi-1]
-        bvals[p-k:end, col:end] ./= dxs
+        bvals[p-k:end] ./= dxs
 
-        if k > p-2-nder
-            # Copy scaled basis functions to next level
-            bvals[:, col-1] = bvals[:, col]
-
+        if k > p-2-deriv
             # Differentiate the remainder
             # This 'unscales' the functions
-            bvals[:, col:end] = [bvals[1:end-1, col:end] - bvals[2:end, col:end];
-                                 bvals[end, col:end]] * (k + 1)
-
-            col -= 1
+            bvals = [bvals[1:end-1] - bvals[2:end]; bvals[end]] * (k + 1)
+        else
+            # Apply order increment formula to the highest level
+            # This also 'unscales' the functions
+            lft = (pt - b.knots[bi-k-2:bi-1]) .* bvals[p-k-1:end]
+            rgt = [(b.knots[bi:bi+k] - pt) .* bvals[p-k:end], 0]
+            bvals[p-k-1:end] = lft + rgt
         end
-
-        # Apply order increment formula to the highest level
-        # This also 'unscales' the functions
-        lft = (pt - b.knots[bi-k-2:bi-1]) .* bvals[p-k-1:end, col]
-        rgt = [(b.knots[bi:bi+k] - pt) .* bvals[p-k:end, col], 0]
-        bvals[p-k-1:end, col] = lft + rgt
     end
 
     bvals
