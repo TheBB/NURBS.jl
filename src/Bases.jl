@@ -101,24 +101,34 @@ end
 Base.call(b::BSplineBasis, pts, coeffs::Vector) = [b(pt, coeffs) for pt in pts]
 Base.call(b::BSplineBasis, pts, coeffs) = vcat([b(pt, coeffs) for pt in pts]...)
 
-function supported(b::BSplineBasis, pts::Vector{Float64})
+function supported{T<:Real}(b::BSplineBasis, pt::T)
+    kidx = b.order - 1 + searchsorted(b.knots[b.order:end], pt).stop
+    stop = b.knots[kidx] == b.knots[end] ? kidx - b.order : kidx
+    stop - b.order + 1 : stop
+end
+
+function supported{T<:Real}(b::BSplineBasis, pts::Vector{T})
     (min, max) = extrema(pts)
     @assert(min in domain(b) && max in domain(b))
 
     idxs = zeros(Int, length(pts))
 
-    kidx = b.order
-    for (i, pt) in enumerate(pts)
-        kidx = kidx - 1 + searchsorted(b.knots[kidx:end], pt).stop
-        idxs[i] = b.knots[kidx] == b.knots[end] ? kidx - b.order : kidx
+    if !issorted(pts)
+        for (i, pt) in enumerate(pts)
+            idxs[i] = supported(b, pt).stop
+        end
+    else
+        kidx = b.order
+        for (i, pt) in enumerate(pts)
+            kidx = kidx - 1 + searchsorted(b.knots[kidx:end], pt).stop
+            idxs[i] = b.knots[kidx] == b.knots[end] ? kidx - b.order : kidx
+        end
     end
 
     imap(groupby(enumerate(idxs), i -> i[2])) do i
         (pts[i[1][1]:i[end][1]], i[1][2] - b.order + 1 : i[1][2])
     end
 end
-
-supported(b::BSplineBasis, pt::Real) = first(supported(b, Float64[pt]))[2]
 
 macro bs_er_scale(bvals, knots, mid, num)
     :($bvals ./= $knots[$mid:$mid+$num] - $knots[$mid-$num-1:$mid-1])
