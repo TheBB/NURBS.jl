@@ -24,7 +24,7 @@ typealias NURBS BasisFunction1D{NURBSBasis}
 # Inherit functions from B-Spline bases
 Base.length(b::NURBSBasis) = length(b.bs)
 Base.size(b::NURBSBasis) = size(b.bs)
-Base.getindex(b::NURBSBasis) = NURBS(b, i, 0)
+Base.getindex(b::NURBSBasis, i) = NURBS(b, i, b.deriv)
 
 nderivs(b::NURBSBasis) = min(2, nderivs(b.bs))
 
@@ -43,7 +43,7 @@ function evaluate_raw{T<:Real}(b::NURBSBasis, pts::Vector{T}, deriv::Int, rng::U
     const bwts = b.weights[rng]
 
     bvals = evaluate_raw(b.bs, pts, 0, rng) .* bwts
-    wts = b.weights[rng]' * bvals
+    wts = sum(bvals, 1)
 
     if deriv == 0
         return bvals ./ wts
