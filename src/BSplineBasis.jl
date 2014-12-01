@@ -4,17 +4,18 @@ immutable BSplineBasis <: Basis1D
     deriv::Int
 
     function BSplineBasis(knots, order, deriv=0, extend=true)
-        @assert(deriv < order)
+        @assert_ex(deriv < order, ArgumentError("Differentiation order not supported"))
 
         for (kn, kp) in zip(knots[2:end], knots[1:end-1])
-            @assert(kn >= kp)
+            @assert_ex(kn >= kp, ArgumentError("Knot vector must be nondecreasing"))
         end
 
         if extend
             knots = [fill(knots[1], order-1), knots, fill(knots[end], order-1)]
         else
             for d in 1:order-1
-                @assert(knots[1+d] == knots[1] && knots[end-d] == knots[end])
+                @assert_ex(knots[1+d] == knots[1] && knots[end-d] == knots[end],
+                           ArgumentError("Expected $order repeated knots on either end"))
             end
         end
 
@@ -52,7 +53,7 @@ end
 
 function supported{T<:Real}(b::BSplineBasis, pts::Vector{T})
     (min, max) = extrema(pts)
-    @assert(min in domain(b) && max in domain(b))
+    @assert_ex(min in domain(b) && max in domain(b), DomainError())
 
     idxs = zeros(Int, length(pts))
 

@@ -4,9 +4,11 @@ immutable NURBSBasis <: Basis1D
     deriv::Int
 
     function NURBSBasis(basis::BSplineBasis, weights, deriv)
-        @assert(bs.deriv == 0)
-        @assert(length(basis) == length(weights))
-        @assert(deriv <= nderivs(basis))
+        @assert_ex(bs.deriv == 0, ArgumentError("Underlying B-Spline basis must not be differentiated"))
+        @assert_ex(length(basis) == length(weights),
+                   ArgumentError("Number of weights must be equal to number of basis functions"))
+        @assert_ex(minimum(weights) > 0.0, ArgumentError("Weights must be positive"))
+        @assert_ex(deriv <= 2, ArgumentError("Differentiation order not supported"))
         new(basis, weights, deriv)
     end
 
@@ -23,7 +25,7 @@ Base.length(b::NURBSBasis) = length(b.bs)
 Base.size(b::NURBSBasis) = size(b.bs)
 Base.getindex(b::NURBSBasis) = NURBS(b, i, 0)
 
-nderivs(b::NURBSBasis) = nderivs(b.bs) - b.deriv
+nderivs(b::NURBSBasis) = min(2, nderivs(b.bs)) - b.deriv
 
 domain(b::NURBSBasis) = domain(b.bs)
 domain(b::NURBS) = domain(b.basis[b.index])

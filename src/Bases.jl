@@ -7,6 +7,11 @@ export Basis, Basis1D, domain, deriv, order,
        BSplineBasis
 
 
+macro assert_ex(condition, error)
+    :($condition ? nothing : throw($error))
+end
+
+
 # Abstract Basis types
 # ========================================================================
 
@@ -19,8 +24,8 @@ type BasisFunction1D{B<:Basis1D}
     deriv::Int
 
     function BasisFunction1D(basis, index, deriv)
-        @assert(1 <= index <= length(basis))
-        @assert(0 <= deriv <= nderivs(basis))
+        @assert_ex(1 <= index <= length(basis), BoundsError())
+        @assert_ex(0 <= deriv <= nderivs(basis), ArgumentError("Differentiation order not supported"))
         new(basis, index, deriv)
     end
 

@@ -19,11 +19,11 @@ basis = BSplineBasis([0, 0, 0, 1, 2, 3, 4, 4, 4], 3, 1, false)
 @test(basis.order == 3)
 @test(basis.deriv == 1)
 
-@test_throws(ErrorException, BSplineBasis([2, 2, 1, 0, 0], 2, 0, false))
-@test_throws(ErrorException, BSplineBasis([0, 0, 1, 2, 2], 3, 0, false))
-@test_throws(ErrorException, BSplineBasis([0, 0, 1, 2, 3], 2, 0, false))
-@test_throws(ErrorException, BSplineBasis([0, 1, 2, 3, 3], 2, 0, false))
-@test_throws(ErrorException, BSplineBasis([0, 1], 2, 2))
+@test_throws(ArgumentError, BSplineBasis([2, 2, 1, 0, 0], 2, 0, false))
+@test_throws(ArgumentError, BSplineBasis([0, 0, 1, 2, 2], 3, 0, false))
+@test_throws(ArgumentError, BSplineBasis([0, 0, 1, 2, 3], 2, 0, false))
+@test_throws(ArgumentError, BSplineBasis([0, 1, 2, 3, 3], 2, 0, false))
+@test_throws(ArgumentError, BSplineBasis([0, 1], 2, 2))
 
 
 # BSplineBasis outer constructors
@@ -163,7 +163,7 @@ for pt in [0.25, 0.51, 0.9]
     testeval_sdn(basis, pt)
 end
 basis = deriv(basis)
-@test_throws(ErrorException, deriv(basis))
+@test_throws(ArgumentError, deriv(basis))
 
 basis = BSplineBasis([0, 0.5, 0.7, 0.8], 3)
 for i in 1:2
@@ -172,7 +172,7 @@ for i in 1:2
     end
     basis = deriv(basis)
 end
-@test_throws(ErrorException, deriv(basis))
+@test_throws(ArgumentError, deriv(basis))
 
 basis = BSplineBasis(0, 2, 4, 4)
 for i in 1:3
@@ -181,7 +181,7 @@ for i in 1:3
     end
     basis = deriv(basis)
 end
-@test_throws(ErrorException, deriv(basis))
+@test_throws(ArgumentError, deriv(basis))
 
 
 # Multiple points, derivatives
@@ -223,8 +223,8 @@ end
 # ========================================================================
 
 basis = BSplineBasis(0, 4, 4, 2)
-@test_throws(ErrorException, basis[0])
-@test_throws(ErrorException, basis[6])
+@test_throws(BoundsError, basis[0])
+@test_throws(BoundsError, basis[6])
 @test(basis[1].basis == basis)
 @test(basis[2].index == 2)
 @test(basis[5].deriv == 0)
@@ -234,10 +234,10 @@ basis = BSplineBasis(0, 4, 4, 2)
 @test(deriv(basis[1]).basis == basis)
 @test(deriv(basis[2]).index == 2)
 @test(deriv(basis[3]).deriv == 1)
-@test_throws(ErrorException, deriv(deriv(basis[2])))
+@test_throws(ArgumentError, deriv(deriv(basis[2])))
 
 basis = BSplineBasis([0, 4, 5, 6], 4)
-@test_throws(ErrorException, basis[7])
+@test_throws(BoundsError, basis[7])
 @test(basis[6].basis == basis)
 @test(basis[2].deriv == 0)
 @test(basis[1].index == 1)
@@ -250,9 +250,9 @@ basis = BSplineBasis([0, 4, 5, 6], 4)
 @test(deriv(basis[1]).basis == basis)
 @test(deriv(basis[4]).index == 4)
 @test(deriv(deriv(basis[4])).deriv == 2)
-@test_throws(ErrorException, deriv(deriv(deriv(deriv(basis[3])))))
+@test_throws(ArgumentError, deriv(deriv(deriv(deriv(basis[3])))))
 
 basis = deriv(basis)
 @test(deriv(basis[2]).deriv == 1)
 @test(deriv(basis[2]).basis.deriv == 1)
-@test_throws(ErrorException, deriv(deriv(deriv(basis[1]))))
+@test_throws(ArgumentError, deriv(deriv(deriv(basis[1]))))
