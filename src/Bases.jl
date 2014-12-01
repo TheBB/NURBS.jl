@@ -4,7 +4,8 @@ import Iterators: groupby, imap
 import ..Utils: Interval
 
 export Basis, Basis1D, domain, deriv, order,
-       BSplineBasis
+       BSplineBasis,
+       NURBSBasis
 
 
 macro assert_ex(condition, error)

@@ -3,14 +3,14 @@ immutable NURBSBasis <: Basis1D
     weights::Vector{Float64}
     deriv::Int
 
-    function NURBSBasis(basis::BSplineBasis, weights, deriv)
+    function NURBSBasis(bs::BSplineBasis, weights, deriv)
         @assert_ex(bs.deriv == 0,
                    ArgumentError("Underlying B-Spline basis must not be differentiated"))
-        @assert_ex(length(basis) == length(weights),
+        @assert_ex(length(bs) == length(weights),
                    ArgumentError("Number of weights must be equal to number of basis functions"))
         @assert_ex(minimum(weights) > 0.0, ArgumentError("Weights must be positive"))
-        @assert_ex(deriv <= 2, ArgumentError("Differentiation order not supported"))
-        new(basis, weights, deriv)
+        @assert_ex(deriv <= min(nderivs(bs), 2), ArgumentError("Differentiation order not supported"))
+        new(bs, weights, deriv)
     end
 
     NURBSBasis{T<:Real}(b::BSplineBasis, weights::Vector{T}) = NURBSBasis(b, weights, 0)
@@ -40,14 +40,16 @@ deriv(b::NURBSBasis, order) = NURBSBasis(b.bs, b.weights, b.deriv + order)
 supported(b::NURBSBasis, pts) = supported(b.bs, pts)
 
 function evaluate_raw{T<:Real}(b::NURBSBasis, pts::Vector{T}, deriv::Int, rng::UnitRange{Int})
-    bvals = evaluate_raw(b.bs, pts, 0, rng)
+    const bwts = b.weights[rng]
+
+    bvals = evaluate_raw(b.bs, pts, 0, rng) .* bwts
     wts = b.weights[rng]' * bvals
 
     if deriv == 0
-        return bvals .* b.weights[rng] ./ wts
+        return bvals ./ wts
     end
 
-    bvals1 = evaluate_raw(b.bs, pts, 1, rng)
+    bvals1 = evaluate_raw(b.bs, pts, 1, rng) .* bwts
     wts1 = b.weights[rng]' * bvals
     d1 = (bvals1 .* wts - bvals .* wts1) ./ (wts .^ 2)
 
@@ -55,7 +57,7 @@ function evaluate_raw{T<:Real}(b::NURBSBasis, pts::Vector{T}, deriv::Int, rng::U
         return d1
     end
 
-    bvals2 = evaluate_raw(b.bs, pts, 2, rng)
+    bvals2 = evaluate_raw(b.bs, pts, 2, rng) .* bwts
     wts2 = b.weights[rng]' * bvals
     d2 = (bvals2 .* wts - bvals .* wts2) ./ (wts .^ 2)
 
