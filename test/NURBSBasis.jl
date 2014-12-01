@@ -49,11 +49,10 @@ end
 # NURBSBasis evaluation
 # ========================================================================
 
-# Single point, no derivatives
-basis = NURBSBasis(BSplineBasis(0, 1, 2, 2))
-testeval_snn(basis, 0, [1, 0], 1:2)
-testeval_snn(basis, 0.5, [1, 0], 2:3)
-testeval_snn(basis, 1, [0, 1], 2:3)
-
-basis = NURBSBasis(BSplineBasis(0, 2, 2, 2), [1.5, 0.5, 1])
-testeval_snn(basis, 0.2, [0.923076923077, 0.0769230769231], 1:2)
+t = sqrt(2)/2
+wts = [1, t, 1, t, 1, t, 1, t, 1]
+kts = [0, pi/2, pi/2, pi, pi, 3pi/2, 3pi/2, 2pi]
+coeffs = [1 0; 1 1; 0 1; -1 1; -1 0; -1 -1; 0 -1; 1 -1; 1 0]
+bs = NURBSBasis(BSplineBasis(kts, 3), wts)
+norms = sum(bs(linspace(0, 2pi, 100), coeffs) .^ 2, 2)
+@test_approx_eq norms ones(100)
