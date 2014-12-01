@@ -253,6 +253,6 @@ basis = BSplineBasis([0, 4, 5, 6], 4)
 @test_throws ArgumentError deriv(deriv(deriv(deriv(basis[3]))))
 
 basis = deriv(basis)
-@test deriv(basis[2]).deriv == 1
+@test deriv(basis[2]).deriv == 2
 @test deriv(basis[2]).basis.deriv == 1
 @test_throws ArgumentError deriv(deriv(deriv(basis[1])))

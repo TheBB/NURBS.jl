@@ -44,7 +44,7 @@ end
 function Base.call{B<:BasisFunction1D, T<:Real}(b::B, pt::T)
     rng = supported(b.basis, pt)
     if b.index ∉ rng return 0.0 end
-    evaluate_raw(b.basis, [pt], b.deriv + b.basis.deriv, rng)[1 + b.index - rng.start, 1]
+    evaluate_raw(b.basis, [pt], b.deriv, rng)[1 + b.index - rng.start, 1]
 end
 
 function Base.call{B<:Basis1D, T<:Real}(b::B, pts::Vector{T})
@@ -69,7 +69,7 @@ function Base.call{B<:BasisFunction1D, T<:Real}(b::B, pts::Vector{T})
         i += length(subpts)
         if b.index ∉ rng continue end
 
-        out = evaluate_raw(b.basis, subpts, b.basis.deriv + b.deriv, rng)
+        out = evaluate_raw(b.basis, subpts, b.deriv, rng)
         res[i-length(subpts):i-1] = out[findin(rng, b.index), :]
     end
 

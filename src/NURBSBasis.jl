@@ -26,7 +26,7 @@ Base.length(b::NURBSBasis) = length(b.bs)
 Base.size(b::NURBSBasis) = size(b.bs)
 Base.getindex(b::NURBSBasis) = NURBS(b, i, 0)
 
-nderivs(b::NURBSBasis) = min(2, nderivs(b.bs)) - b.deriv
+nderivs(b::NURBSBasis) = min(2, nderivs(b.bs))
 
 domain(b::NURBSBasis) = domain(b.bs)
 domain(b::NURBS) = domain(b.basis[b.index])
@@ -37,8 +37,7 @@ order(b::NURBS) = throw(ArgumentError("NURBS are not polynomial"))
 deriv(b::NURBSBasis) = NURBSBasis(b.bs, b.weights, b.deriv + 1)
 deriv(b::NURBSBasis, order) = NURBSBasis(b.bs, b.weights, b.deriv + order)
 
-supported{T<:Real}(b::NURBSBasis, pt::T) = supported(b.bs, pt)
-supported{T<:Real}(b::NURBSBasis, pts::Vector{T}) = supported(b.bs, pts)
+supported(b::NURBSBasis, pts) = supported(b.bs, pts)
 
 function evaluate_raw{T<:Real}(b::NURBSBasis, pts::Vector{T}, deriv::Int, rng::UnitRange{Int})
     bvals = evaluate_raw(b.bs, pts, 0, rng)

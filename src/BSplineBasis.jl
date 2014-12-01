@@ -31,15 +31,15 @@ typealias BSpline BasisFunction1D{BSplineBasis}
 
 Base.length(b::BSplineBasis) = length(b.knots) - b.order
 Base.size(b::BSplineBasis) = (length(b),)
-Base.getindex(b::BSplineBasis, i) = BSpline(b, i, 0)
+Base.getindex(b::BSplineBasis, i) = BSpline(b, i, b.deriv)
 
-nderivs(b::BSplineBasis) = b.order - b.deriv - 1
+nderivs(b::BSplineBasis) = b.order - 1
 
 domain(b::BSplineBasis) = Interval(b.knots[1], b.knots[end])
 domain(b::BSpline) = Interval(b.basis.knots[b.index], b.basis.knots[b.index+b.basis.order])
 
 order(b::BSplineBasis) = b.order - b.deriv
-order(b::BSpline) = b.basis.order - b.basis.deriv - b.deriv
+order(b::BSpline) = b.basis.order - b.deriv
 
 deriv(b::BSplineBasis) = BSplineBasis(b.knots, b.order, b.deriv+1, false)
 deriv(b::BSplineBasis, order) = BSplineBasis(b.knots, b.order, b.deriv+order, false)
