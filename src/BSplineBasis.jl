@@ -88,7 +88,7 @@ function evaluate_raw{T<:Real}(b::BSplineBasis, pts::Vector{T}, deriv::Int, rng:
 
     # Order increment
     for k in 0:p-deriv-2
-        @bs_er_scale(bvals[p-k:end,:], b.knots, bi, k)
+        @bs_er_scale bvals[p-k:end,:] b.knots bi k
 
         for (i, kp, kn) in zip(p-k-1:p-1, b.knots[bi-k-2:bi-2], b.knots[bi:bi+k])
             bvals[i,:] .*= (pts - kp)'
@@ -99,7 +99,7 @@ function evaluate_raw{T<:Real}(b::BSplineBasis, pts::Vector{T}, deriv::Int, rng:
 
     # Differentiation
     for k = p-deriv-1:p-2
-        @bs_er_scale(bvals[p-k:end,:], b.knots, bi, k)
+        @bs_er_scale bvals[p-k:end,:] b.knots bi k
 
         bvals[1:end-1,:] = -diff(bvals, 1)
         bvals *= k + 1

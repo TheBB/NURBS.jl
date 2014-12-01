@@ -4,7 +4,8 @@ immutable NURBSBasis <: Basis1D
     deriv::Int
 
     function NURBSBasis(basis::BSplineBasis, weights, deriv)
-        @assert_ex(bs.deriv == 0, ArgumentError("Underlying B-Spline basis must not be differentiated"))
+        @assert_ex(bs.deriv == 0,
+                   ArgumentError("Underlying B-Spline basis must not be differentiated"))
         @assert_ex(length(basis) == length(weights),
                    ArgumentError("Number of weights must be equal to number of basis functions"))
         @assert_ex(minimum(weights) > 0.0, ArgumentError("Weights must be positive"))

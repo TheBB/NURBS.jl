@@ -25,7 +25,8 @@ type BasisFunction1D{B<:Basis1D}
 
     function BasisFunction1D(basis, index, deriv)
         @assert_ex(1 <= index <= length(basis), BoundsError())
-        @assert_ex(0 <= deriv <= nderivs(basis), ArgumentError("Differentiation order not supported"))
+        @assert_ex(0 <= deriv <= nderivs(basis),
+                   ArgumentError("Differentiation order not supported"))
         new(basis, index, deriv)
     end
 
