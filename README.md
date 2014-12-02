@@ -87,8 +87,8 @@ Evaluation at multiple points will return, for a basis, an array of tuples, or f
 an array of floats.
 
 You can also evaluate a basis with coefficients.  Coefficients are stored either in a vector of size
-`length(basis)` or a matrix of size `length(basis)` × `d`, where `d` is the dimension of the
-surrounding space.  Calls to `basis(pt, coeffs)` will return a float or a 1×`d`-dimensional matrix,
+`length(basis)` or a matrix of size `length(basis)` × _d_, where _d_ is the dimension of the
+surrounding space.  Calls to `basis(pt, coeffs)` will return a float or a 1×_d_-dimensional matrix,
 while calls to `basis(pts, coeffs)` will return a vector or a matrix.
 
 (This may change when I decide it is more convenient to do something else.)
