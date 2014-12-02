@@ -12,6 +12,8 @@ This is written mostly as a way to teach myself Julia.  Other packages provide s
 
 * [BSplines](https://github.com/gusl/BSplines.jl) by gusl. Failing tests as of the time of writing.
 * [Dierckx](https://github.com/kbarbary/Dierckx.jl) by kbarbary. Has external dependencies.
+* [Grid](https://github.com/timholy/Grid.jl) by timholy. Only deals with uniformly spaced splines.
+* [Interpolations](https://github.com/tlycken/Interpolations.jl) by tlycken. A continuation of _Grid_.
 
 _NURBS.jl_ intends to provide a common framework objects of both spline and NURBS types, with no
 external dependencies.
