@@ -50,7 +50,7 @@ function evaluate_raw{T<:Real}(b::NURBSBasis, pts::Vector{T}, deriv::Int, rng::U
     end
 
     bvals1 = evaluate_raw(b.bs, pts, 1, rng) .* bwts
-    wts1 = b.weights[rng]' * bvals
+    wts1 = sum(bvals1, 1)
     d1 = (bvals1 .* wts - bvals .* wts1) ./ (wts .^ 2)
 
     if deriv == 1
@@ -58,7 +58,7 @@ function evaluate_raw{T<:Real}(b::NURBSBasis, pts::Vector{T}, deriv::Int, rng::U
     end
 
     bvals2 = evaluate_raw(b.bs, pts, 2, rng) .* bwts
-    wts2 = b.weights[rng]' * bvals
+    wts2 = sum(bvals2, 1)
     d2 = (bvals2 .* wts - bvals .* wts2) ./ (wts .^ 2)
 
     if deriv == 2

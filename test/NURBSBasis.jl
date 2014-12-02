@@ -71,3 +71,11 @@ testeval_snn(bs, 6.0, [0.0355815798651, 0.228799037625, 0.73561938251], 7:9)
 testeval_snn(bs, 2pi, [0, 0, 1], 7:9)
 norms = sum(bs(linspace(0, 2pi, 100), coeffs) .^ 2, 2)
 @test_approx_eq norms ones(100)
+
+for j in 1:2
+    for i in 0.5:0.5:6.0
+        testeval_sdn(bs, i)
+    end
+    bs = deriv(bs)
+end
+@test_throws ArgumentError deriv(bs)
