@@ -38,8 +38,8 @@ nderivs(b::BSplineBasis) = b.order - 1
 domain(b::BSplineBasis) = Interval(b.knots[1], b.knots[end])
 domain(b::BSpline) = Interval(b.basis.knots[b.index], b.basis.knots[b.index+b.basis.order])
 
-order(b::BSplineBasis) = b.order - b.deriv
-order(b::BSpline) = b.basis.order - b.deriv
+degree(b::BSplineBasis) = b.order - b.deriv - 1
+degree(b::BSpline) = b.basis.order - b.deriv - 1
 
 deriv(b::BSplineBasis) = BSplineBasis(b.knots, b.order, b.deriv+1, false)
 deriv(b::BSplineBasis, order) = BSplineBasis(b.knots, b.order, b.deriv+order, false)
