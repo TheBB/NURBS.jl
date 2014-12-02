@@ -10,8 +10,8 @@ includes B-Splines, as a special case.  It involves no external dependencies.
 
 This is written mostly as a way to teach myself Julia.  Other packages provide similar functionality:
 
-* [https://github.com/gusl/BSplines.jl](BSplines) by gusl. Failing tests as of the time of writing.
-* [https://github.com/kbarbary/Dierckx.jl](Dierckx) by kbarbary. Has external dependencies.
+* [BSplines](https://github.com/gusl/BSplines.jl) by gusl. Failing tests as of the time of writing.
+* [Dierckx](https://github.com/kbarbary/Dierckx.jl) by kbarbary. Has external dependencies.
 
 _NURBS.jl_ intends to provide a common framework objects of both spline and NURBS types, with no
 external dependencies.
