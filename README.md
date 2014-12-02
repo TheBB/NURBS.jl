@@ -98,7 +98,7 @@ while calls to `basis(pts, coeffs)` will return a vector or a matrix.
 The unit circle in NURBS form.  See the
 [Wikipedia article](http://en.wikipedia.org/wiki/Non-uniform_rational_B-spline#Example:_a_circle).
 
-```
+```julia
 julia> using NURBS.Bases
 
 julia> knots = [0, pi/2, pi/2, pi, pi, 3pi/2, 3pi/2, 2pi];
