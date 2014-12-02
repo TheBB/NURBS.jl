@@ -124,10 +124,8 @@ nurbs(p,coeffs) = [0.0 -1.0]
 nurbs(p,coeffs) = [0.7071067811865476 -0.7071067811865476]
 nurbs(p,coeffs) = [1.0 0.0]
 
-julia> for p in linspace(0, 1, 5) @show norm(nurbs(p, coeffs)) end
-norm(nurbs(p,coeffs)) = 1.0
-norm(nurbs(p,coeffs)) = 1.0
-norm(nurbs(p,coeffs)) = 1.0
-norm(nurbs(p,coeffs)) = 0.9999999999999999
-norm(nurbs(p,coeffs)) = 1.0000000000000002
+julia> points = nurbs(linspace(0, 2pi, 1000), coeffs);
+
+julia> (min, max) = extrema(sum(points .^ 2, 2))
+(0.9999999999999997,1.0000000000000004)
 ```
