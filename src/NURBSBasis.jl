@@ -3,7 +3,7 @@ immutable NURBSBasis <: Basis1D
     weights::Vector{Float64}
     deriv::Int
 
-    function NURBSBasis(bs::BSplineBasis, weights, deriv)
+    function NURBSBasis(bs::BSplineBasis, weights, deriv=0)
         @assert_ex(bs.deriv == 0,
                    ArgumentError("Underlying B-Spline basis must not be differentiated"))
         @assert_ex(length(bs) == length(weights),
@@ -13,9 +13,8 @@ immutable NURBSBasis <: Basis1D
         new(bs, weights, deriv)
     end
 
-    NURBSBasis{T<:Real}(b::BSplineBasis, weights::Vector{T}) = NURBSBasis(b, weights, 0)
     NURBSBasis(b::BSplineBasis, deriv::Int) = NURBSBasis(b, ones(length(b)), deriv)
-    NURBSBasis(b::BSplineBasis) = NURBSBasis(b, ones(length(b)), 0)
+    NURBSBasis(b::BSplineBasis) = NURBSBasis(b, ones(length(b)))
 end
 
 typealias NURBS BasisFunction1D{NURBSBasis}

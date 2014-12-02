@@ -14,15 +14,15 @@ basis = BSplineBasis(linspace(0, 4, 5), 3)
 @test basis.order == 3
 @test basis.deriv == 0
 
-basis = BSplineBasis([0, 0, 0, 1, 2, 3, 4, 4, 4], 3, 1, false)
+basis = BSplineBasis([0, 0, 0, 1, 2, 3, 4, 4, 4], 3, 1; extend=false)
 @test basis.knots == [0, 0, 0, 1, 2, 3, 4, 4, 4]
 @test basis.order == 3
 @test basis.deriv == 1
 
-@test_throws ArgumentError BSplineBasis([2, 2, 1, 0, 0], 2, 0, false)
-@test_throws ArgumentError BSplineBasis([0, 0, 1, 2, 2], 3, 0, false)
-@test_throws ArgumentError BSplineBasis([0, 0, 1, 2, 3], 2, 0, false)
-@test_throws ArgumentError BSplineBasis([0, 1, 2, 3, 3], 2, 0, false)
+@test_throws ArgumentError BSplineBasis([2, 2, 1, 0, 0], 2, 0; extend=false)
+@test_throws ArgumentError BSplineBasis([0, 0, 1, 2, 2], 3, 0; extend=false)
+@test_throws ArgumentError BSplineBasis([0, 0, 1, 2, 3], 2, 0; extend=false)
+@test_throws ArgumentError BSplineBasis([0, 1, 2, 3, 3], 2, 0; extend=false)
 @test_throws ArgumentError BSplineBasis([0, 1], 2, 2)
 
 

@@ -3,7 +3,7 @@ immutable BSplineBasis <: Basis1D
     order::Int
     deriv::Int
 
-    function BSplineBasis(knots, order, deriv=0, extend=true)
+    function BSplineBasis(knots, order, deriv=0; extend=true)
         @assert_ex(deriv < order, ArgumentError("Differentiation order not supported"))
 
         for (kn, kp) in zip(knots[2:end], knots[1:end-1])
@@ -23,7 +23,7 @@ immutable BSplineBasis <: Basis1D
     end
 
     BSplineBasis(lft::Real, rgt::Real, elements::Int, order::Int) =
-        BSplineBasis(linspace(lft, rgt, elements+1), order, 0)
+        BSplineBasis(linspace(lft, rgt, elements+1), order)
 end
 
 typealias BSpline BasisFunction1D{BSplineBasis}
@@ -41,8 +41,8 @@ domain(b::BSpline) = Interval(b.basis.knots[b.index], b.basis.knots[b.index+b.ba
 degree(b::BSplineBasis) = b.order - b.deriv - 1
 degree(b::BSpline) = b.basis.order - b.deriv - 1
 
-deriv(b::BSplineBasis) = BSplineBasis(b.knots, b.order, b.deriv+1, false)
-deriv(b::BSplineBasis, order) = BSplineBasis(b.knots, b.order, b.deriv+order, false)
+deriv(b::BSplineBasis) = BSplineBasis(b.knots, b.order, b.deriv+1; extend=false)
+deriv(b::BSplineBasis, order) = BSplineBasis(b.knots, b.order, b.deriv+order; extend=false)
 
 
 function supported{T<:Real}(b::BSplineBasis, pt::T)
