@@ -64,7 +64,7 @@ function supported{T<:Real}(b::BSplineBasis, pts::Vector{T})
     else
         kidx = b.order
         for (i, pt) in enumerate(pts)
-            kidx = kidx - 1 + searchsorted(b.knots[kidx:end], pt).stop
+            kidx += searchsorted(b.knots[kidx:end], pt).stop - 1
             idxs[i] = b.knots[kidx] == b.knots[end] ? kidx - b.order : kidx
         end
     end

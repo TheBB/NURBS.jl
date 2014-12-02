@@ -49,13 +49,14 @@ function Base.call{B<:BasisFunction1D, T<:Real}(b::B, pt::T)
 end
 
 function Base.call{B<:Basis1D, T<:Real}(b::B, pts::Vector{T})
-    res = (Vector{Float64}, UnitRange{Int})[]
-    sizehint(res, length(pts))
+    tp = (Vector{Float64}, UnitRange{Int})
+    res = Array(tp, length(pts))
 
+    j = 0
     for (subpts, rng) in supported(b, pts)
         out = evaluate_raw(b, subpts, b.deriv, rng)
         for i in 1:length(subpts)
-            push!(res, (out[:,i], rng))
+            res[j+=1] = (out[:,i], rng)
         end
     end
 
