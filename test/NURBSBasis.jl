@@ -24,13 +24,13 @@ basis = NURBSBasis(bs, 2)
 
 basis = NURBSBasis(bs, linspace(4, 5, 6))
 @test basis.bs == bs
-@test basis.weights == linspace(4, 5, 6)
+@test basis.weights == collect(linspace(4, 5, 6))
 @test basis.deriv == 0
 
 @test_throws ArgumentError NURBSBasis(deriv(bs))
 @test_throws ArgumentError NURBSBasis(bs, linspace(1, 2, 5))
 @test_throws ArgumentError NURBSBasis(bs, linspace(1, 2, 7))
-@test_throws ArgumentError NURBSBasis(bs, [-1.0, ones(5)])
+@test_throws ArgumentError NURBSBasis(bs, [-1.0; ones(5)])
 @test_throws ArgumentError NURBSBasis(bs, 3)
 @test_throws ArgumentError NURBSBasis(BSplineBasis([0, 1], 2), 2)
 
@@ -69,7 +69,7 @@ testeval_snn(bs, 5.0, [0.73141253905, 0.2318427624256, 0.0367446985247], 7:9)
 testeval_snn(bs, 5.5, [0.291244696239, 0.414209710077, 0.294545593684], 7:9)
 testeval_snn(bs, 6.0, [0.0355815798651, 0.228799037625, 0.73561938251], 7:9)
 testeval_snn(bs, 2pi, [0, 0, 1], 7:9)
-norms = sum(bs(linspace(0, 2pi, 100), coeffs) .^ 2, 2)
+norms = sum(bs(collect(range(0, 2pi/99, 100)), coeffs) .^ 2, 2)
 @test_approx_eq norms ones(100)
 
 for j in 1:2

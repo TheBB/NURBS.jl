@@ -11,7 +11,7 @@ immutable BSplineBasis <: Basis1D
         end
 
         if extend
-            knots = [fill(knots[1], order-1), knots, fill(knots[end], order-1)]
+            knots = [fill(knots[1], order-1); knots; fill(knots[end], order-1)]
         else
             for d in 1:order-1
                 @assert_ex(knots[1+d] == knots[1] && knots[end-d] == knots[end],

@@ -116,22 +116,22 @@ end
 basis = BSplineBasis(0, 2, 2, 2)
 pts = [0.0, 0.4, 0.8, 1.0, 1.5, 2.0]
 testeval_mnn(basis, pts)
-@test_approx_eq basis[1](pts) [1.0, 0.6, 0.2, zeros(3)]
+@test_approx_eq basis[1](pts) [1.0; 0.6; 0.2; zeros(3)]
 @test_approx_eq basis[2](pts) [0.0, 0.4, 0.8, 1.0, 0.5, 0.0]
-@test_approx_eq basis[3](pts) [zeros(4), 0.5, 1.0]
+@test_approx_eq basis[3](pts) [zeros(4); 0.5; 1.0]
 
 basis = BSplineBasis(0, 3, 4, 3)
 pts = [0.0, 0.4, 0.8, 1.0, 1.5, 2.0, 2.2, 2.8, 3.0]
 testeval_mnn(basis, pts)
-@test_approx_eq basis[1](pts) [1.0, 0.2177777777777774, zeros(7)]
+@test_approx_eq basis[1](pts) [1.0; 0.2177777777777774; zeros(7)]
 @test_approx_eq basis[3](pts) [0.0, 0.1422222222222222, 0.56222222222222222, 0.722222222222222,
                                0.5, 0.0555555555555555, 0.00222222222222222, 0.0, 0.0]
-@test_approx_eq basis[6](pts) [zeros(7), 0.53777777777777777, 1.0]
+@test_approx_eq basis[6](pts) [zeros(7); 0.53777777777777777; 1.0]
 
 basis = BSplineBasis([0, 1, 3, 4], 4)
 pts = [0.0, 0.8, 1.6, 2.4, 3.2, 4.0]
 testeval_mnn(basis, pts)
-@test_approx_eq basis[2](pts) [0.0, 0.5795555555555555, 0.15244444444444444, 0.012, zeros(2)]
+@test_approx_eq basis[2](pts) [0.0; 0.5795555555555555; 0.15244444444444444; 0.012; zeros(2)]
 @test_approx_eq basis[4](pts) [0.0, 0.0426666666666666, 0.29333333333333333, 0.542222222222222,
                                0.3697777777777777, 0.0]
 
@@ -214,7 +214,7 @@ end
 
 basis = BSplineBasis(5, 15, 10, 4)
 for i in 1:3
-    testeval_mdn(basis, linspace(5.5, 14.5, 10))
+    testeval_mdn(basis, collect(linspace(5.5, 14.5, 10)))
     basis = deriv(basis)
 end
 
